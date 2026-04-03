@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Dashboard — HSRMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="topbar">
+      <div style="display: flex; align-items: center;">
+        <span class="topbar-brand">HSRMS</span>
+        <span class="topbar-context" id="topbarContext"></span>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-logout" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="two-col-layout">
+      <div class="left-panel">
+        <div class="section-head">New Service Request</div>
+        
+        <div id="confirmationStrip" class="confirmation-strip" style="display: none;"></div>
+        
+        <form id="requestForm">
+          <div class="field">
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+              <option value="">Select category</option>
+            </select>
+            <div id="category-error" class="field-error"></div>
+          </div>
+          
+          <div class="field">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority" required>
+              <option value="Low">Low</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          
+          <div class="field">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" placeholder="Describe the issue (min 10 characters)" required></textarea>
+            <div id="description-error" class="field-error"></div>
+          </div>
+          
+          <button type="submit" class="btn-primary">Submit Request →</button>
+        </form>
+      </div>
+
+      <div class="right-panel">
+        <div class="section-head">
+          My Requests
+          <span class="count-badge" id="requestCount">0</span>
+        </div>
+        
+        <div id="errorBanner" class="error-banner" style="display: none;"></div>
+        
+        <table id="requestsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Category</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Raised</th>
+            </tr>
+          </thead>
+          <tbody id="requestsBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { session, api, fmt, toggleRow } from '../shared/util.js';
+    
+    // Check auth
+    if (!session.get('student_id')) {
+      window.location.href = 'login.html';
+    }
+    
+    // Set topbar context
+    document.getElementById('topbarContext').textContent = 
+      `${session.get('name')} · Room ${session.get('room_number')} · ${session.get('hostel_name')}`;
+    
+    // Load categories
+    async function loadCategories() {
+      try {
+        const categories = await api('/categories');
+        const select = document.getElementById('category');
+        categories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.category_id;
+          option.textContent = cat.name;
+          select.appendChild(option);
+        });
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      }
+    }
+    
+    // Load requests
+    async function loadRequests() {
+      try {
+        const studentId = session.get('student_id');
+        const requests = await api(`/student/${studentId}/requests`);
+        
+        document.getElementById('requestCount').textContent = requests.length;
+        
+        const tbody = document.getElementById('requestsBody');
+        tbody.innerHTML = '';
+        
+        if (requests.length === 0) {
+          tbody.innerHTML = `
+            <tr class="empty-row">
+              <td colspan="5">
+                <div class="empty-state">No requests raised yet.</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+        
+        requests.forEach((req, idx) => {
+          const dataRow = document.createElement('tr');
+          dataRow.className = 'data-row';
+          dataRow.dataset.detail = `detail-${req.request_id}`;
+          dataRow.style.animationDelay = `${0.03 + idx * 0.04}s`;
+          
+          const statusClass = req.status.toLowerCase().replace(' ', '-');
+          const priorityClass = req.priority.toLowerCase();
+          
+          dataRow.innerHTML = `
+            <td class="id">${fmt.id(req.request_id)}</td>
+            <td>${req.category_name}</td>
+            <td><span class="badge ${priorityClass}">${req.priority}</span></td>
+            <td><span class="badge ${statusClass}">${req.status}</span></td>
+            <td>${fmt.date(req.date_raised)}</td>
+          `;
+          
+          dataRow.addEventListener('click', () => toggleRow(dataRow, `detail-${req.request_id}`));
+          
+          const detailRow = document.createElement('tr');
+          detailRow.id = `detail-${req.request_id}`;
+          detailRow.className = 'detail-row';
+          detailRow.innerHTML = `
+            <td colspan="5">
+              <div class="detail-grid">
+                <div class="detail-full">
+                  <div class="detail-label">Description</div>
+                  <div class="detail-value">${req.description}</div>
+                </div>
+                <div>
+                  <div class="detail-label">Last Updated</div>
+                  <div class="detail-value">${fmt.datetime(req.last_updated)}</div>
+                </div>
+                ${req.staff_name ? `
+                  <div>
+                    <div class="detail-label">Assigned To</div>
+                    <div class="detail-value">${req.staff_name}</div>
+                  </div>
+                  <div>
+                    <div class="detail-label">Assigned Date</div>
+                    <div class="detail-value">${fmt.date(req.assigned_date)}</div>
+                  </div>
+                ` : ''}
+              </div>
+            </td>
+          `;
+          
+          tbody.appendChild(dataRow);
+          tbody.appendChild(detailRow);
+        });
+      } catch (err) {
+        document.getElementById('errorBanner').textContent = 
+          'Failed to load data. Check your connection.';
+        document.getElementById('errorBanner').style.display = 'block';
+      }
+    }
+    
+    // Form validation
+    function validateForm() {
+      const cat = document.getElementById('category').value;
+      const desc = document.getElementById('description').value.trim();
+      let valid = true;
+      
+      document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
+      
+      if (!cat) {
+        const err = document.getElementById('category-error');
+        err.textContent = 'Select a category';
+        err.style.display = 'block';
+        valid = false;
+      }
+      
+      if (desc.length < 10) {
+        const err = document.getElementById('description-error');
+        err.textContent = 'Min 10 characters required';
+        err.style.display = 'block';
+        valid = false;
+      }
+      
+      return valid;
+    }
+    
+    // Submit form
+    document.getElementById('requestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!validateForm()) return;
+      
+      const formData = {
+        student_id: session.get('student_id'),
+        category_id: document.getElementById('category').value,
+        priority: document.getElementById('priority').value,
+        description: document.getElementById('description').value.trim()
+      };
+      
+      try {
+        const res = await api('/student/request', {
+          method: 'POST',
+          body: JSON.stringify(formData)
+        });
+        
+        const strip = document.getElementById('confirmationStrip');
+        strip.textContent = `Request submitted · ID: ${fmt.id(res.request_id)}`;
+        strip.style.display = 'block';
+        
+        document.getElementById('requestForm').reset();
+        
+        setTimeout(() => {
+          strip.style.display = 'none';
+        }, 5000);
+        
+        await loadRequests();
+      } catch (err) {
+        alert('Failed to submit request. Please try again.');
+      }
+    });
+    
+    // Make logout available globally
+    window.logout = () => {
+      session.clear();
+      window.location.href = 'login.html';
+    };
+    
+    // Initialize
+    loadCategories();
+    loadRequests();
+  </script>
+</body>
+</html>

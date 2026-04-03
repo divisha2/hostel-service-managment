@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Log — HSRMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="topbar">
+      <div style="display: flex; align-items: center;">
+        <span class="topbar-brand">HSRMS</span>
+        <span class="topbar-context" id="topbarContext"></span>
+      </div>
+      <div class="topbar-right">
+        <a href="dashboard.html" class="topbar-link">← Dashboard</a>
+        <button class="topbar-logout" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="single-col-layout">
+      <div class="section-head">Status Change Log</div>
+      
+      <div id="errorBanner" class="error-banner" style="display: none;"></div>
+      
+      <table id="auditTable">
+        <thead>
+          <tr>
+            <th>Log ID</th>
+            <th>Request #</th>
+            <th>Old Status</th>
+            <th>New Status</th>
+            <th>Changed At</th>
+          </tr>
+        </thead>
+        <tbody id="auditBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { session, api, fmt } from '../shared/util.js';
+    
+    // Check auth
+    if (!session.get('warden_id')) {
+      window.location.href = 'login.html';
+    }
+    
+    // Set topbar context
+    document.getElementById('topbarContext').textContent = 
+      `Warden: ${session.get('name')} · ${session.get('hostel_name')}`;
+    
+    // Load audit log
+    async function loadAuditLog() {
+      try {
+        const wardenId = session.get('warden_id');
+        const logs = await api(`/warden/${wardenId}/audit-log`);
+        
+        const tbody = document.getElementById('auditBody');
+        tbody.innerHTML = '';
+        
+        if (logs.length === 0) {
+          tbody.innerHTML = `
+            <tr class="empty-row">
+              <td colspan="5">
+                <div class="empty-state">No status changes recorded yet.</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+        
+        logs.forEach((log, idx) => {
+          const row = document.createElement('tr');
+          row.className = 'data-row';
+          row.style.animationDelay = `${0.03 + idx * 0.04}s`;
+          
+          const oldStatusClass = log.old_status.toLowerCase().replace(' ', '-');
+          const newStatusClass = log.new_status.toLowerCase().replace(' ', '-');
+          
+          row.innerHTML = `
+            <td class="id">${log.log_id}</td>
+            <td class="id">${fmt.id(log.request_id)}</td>
+            <td><span class="badge ${oldStatusClass}">${log.old_status}</span></td>
+            <td><span class="badge ${newStatusClass}">${log.new_status}</span></td>
+            <td class="id">${fmt.datetime(log.changed_at)}</td>
+          `;
+          
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        document.getElementById('errorBanner').textContent = 
+          'Failed to load data. Check your connection.';
+        document.getElementById('errorBanner').style.display = 'block';
+      }
+    }
+    
+    // Logout
+    window.logout = () => {
+      session.clear();
+      window.location.href = '../warden/login.html';
+    };
+    
+    // Initialize
+    loadAuditLog();
+  </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Login — HSRMS</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-brand">HSRMS</div>
+      <div class="login-role">Student Login</div>
+      
+      <form id="loginForm">
+        <div class="field">
+          <label for="studentId">Student ID</label>
+          <input type="text" id="studentId" name="studentId" required>
+        </div>
+        
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        
+        <button type="submit" class="btn-primary">Enter →</button>
+        
+        <div id="loginError" class="login-error"></div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { session, api } from '../shared/util.js';
+    
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const studentId = document.getElementById('studentId').value;
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('loginError');
+      
+      errorEl.style.display = 'none';
+      
+      try {
+        const res = await api('/auth/student', {
+          method: 'POST',
+          body: JSON.stringify({ student_id: studentId, password })
+        });
+        
+        session.set('student_id', res.student_id);
+        session.set('name', res.name);
+        session.set('room_number', res.room_number);
+        session.set('hostel_name', res.hostel_name);
+        session.set('role', 'student');
+        
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        errorEl.textContent = 'Invalid credentials. Please try again.';
+        errorEl.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
