@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HSRMS — Hostel Service Request Management System</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/style.css">
+  <style>
+    .landing-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      padding: 24px;
+    }
+
+    .landing-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .landing-title {
+      font-family: var(--mono);
+      font-size: 48px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .landing-subtitle {
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--ink-muted);
+      letter-spacing: 0.02em;
+    }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .role-card {
+      background: var(--bg-panel);
+      border: 2px solid var(--bdr);
+      padding: 32px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: block;
+    }
+
+    .role-card:hover {
+      border-color: var(--acc);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .role-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .role-name {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ink);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .role-description {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--ink-muted);
+      line-height: 1.6;
+    }
+
+    .role-card.student:hover {
+      border-color: #1A5FA6;
+    }
+
+    .role-card.staff:hover {
+      border-color: #2D6A6A;
+    }
+
+    .role-card.warden:hover {
+      border-color: #6B4FA6;
+    }
+
+    .role-card.admin:hover {
+      border-color: #A32D2D;
+    }
+
+    @media (max-width: 768px) {
+      .landing-title {
+        font-size: 32px;
+      }
+
+      .role-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="landing-container">
+    <div class="landing-header">
+      <div class="landing-title">HSRMS</div>
+      <div class="landing-subtitle">Hostel Service Request Management System</div>
+    </div>
+
+    <div class="role-grid">
+      <a href="student/login.html" class="role-card student">
+        <span class="role-icon">🎓</span>
+        <div class="role-name">Student</div>
+        <div class="role-description">Submit maintenance requests and track their status</div>
+      </a>
+
+      <a href="staff/login.html" class="role-card staff">
+        <span class="role-icon">🔧</span>
+        <div class="role-name">Staff</div>
+        <div class="role-description">Accept and complete maintenance requests</div>
+      </a>
+
+      <a href="warden/login.html" class="role-card warden">
+        <span class="role-icon">👔</span>
+        <div class="role-name">Warden</div>
+        <div class="role-description">Monitor hostel maintenance operations</div>
+      </a>
+
+      <a href="admin/login.html" class="role-card admin">
+        <span class="role-icon">⚙️</span>
+        <div class="role-name">Admin</div>
+        <div class="role-description">Manage system users and oversee all operations</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
