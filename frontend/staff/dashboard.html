@@ -20,37 +20,67 @@
     </div>
 
     <div class="single-col-layout">
-      <div class="section-head">Assigned Requests</div>
-      
-      <div class="filter-bar">
-        <span class="filter-label">Filter:</span>
-        <select id="filter-status" onchange="applyFilters()">
-          <option value="">All Status</option>
-          <option value="Assigned">Assigned</option>
-          <option value="Accepted">Accepted</option>
-          <option value="Completed">Completed</option>
-        </select>
+      <div class="tab-row">
+        <button class="tab active" data-tab="available" onclick="switchTab('available')">Available Requests</button>
+        <button class="tab" data-tab="myjobs" onclick="switchTab('myjobs')">My Jobs</button>
       </div>
-      
-      <div id="errorBanner" class="error-banner" style="display: none;"></div>
-      
-      <table id="assignmentsTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Req</th>
-            <th>Student</th>
-            <th>Room</th>
-            <th>Block</th>
-            <th>Description</th>
-            <th>Status</th>
-            <th>Assigned</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="assignmentsBody">
-        </tbody>
-      </table>
+
+      <!-- Available Requests Section -->
+      <div id="availableSection">
+        <div class="section-head">Available Requests</div>
+        
+        <div id="availableError" class="error-banner" style="display: none;"></div>
+        
+        <table id="availableTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Student</th>
+              <th>Room</th>
+              <th>Block</th>
+              <th>Category</th>
+              <th>Date Raised</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="availableBody">
+          </tbody>
+        </table>
+      </div>
+
+      <!-- My Jobs Section -->
+      <div id="myjobsSection" style="display: none;">
+        <div class="section-head">My Accepted Jobs</div>
+        
+        <div class="filter-bar">
+          <span class="filter-label">Filter:</span>
+          <select id="filter-status" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="Accepted">Accepted</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+        
+        <div id="errorBanner" class="error-banner" style="display: none;"></div>
+        
+        <table id="assignmentsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Req</th>
+              <th>Student</th>
+              <th>Room</th>
+              <th>Block</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th>Assigned</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="assignmentsBody">
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -67,6 +97,105 @@
     document.getElementById('topbarContext').textContent = 
       `${session.get('name')} · ${session.get('specialization')}`;
     
+    // Load available requests
+    async function loadAvailable() {
+      try {
+        const staffId = session.get('staff_id');
+        console.log('Loading available requests for staff:', staffId);
+        const available = await api(`/staff/${staffId}/available`);
+        console.log('Available requests loaded:', available);
+        
+        const tbody = document.getElementById('availableBody');
+        tbody.innerHTML = '';
+        
+        if (available.length === 0) {
+          tbody.innerHTML = `
+            <tr class="empty-row">
+              <td colspan="7">
+                <div class="empty-state">No available requests in your category.</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+        
+        available.forEach((req, idx) => {
+          const dataRow = document.createElement('tr');
+          dataRow.className = 'data-row';
+          dataRow.dataset.detail = `avail-detail-${req.request_id}`;
+          dataRow.style.animationDelay = `${0.03 + idx * 0.04}s`;
+          
+          dataRow.innerHTML = `
+            <td class="id">${fmt.id(req.request_id)}</td>
+            <td>${req.student_name}</td>
+            <td class="id">${req.room_number}</td>
+            <td>${req.hostel_name}</td>
+            <td>${req.category_name}</td>
+            <td>${fmt.date(req.date_raised)}</td>
+            <td><button class="btn-inline primary" onclick="acceptRequest(${req.request_id})">Accept</button></td>
+          `;
+          
+          dataRow.addEventListener('click', (e) => {
+            if (!e.target.closest('button')) {
+              toggleRow(dataRow, `avail-detail-${req.request_id}`);
+            }
+          });
+          
+          const detailRow = document.createElement('tr');
+          detailRow.id = `avail-detail-${req.request_id}`;
+          detailRow.className = 'detail-row';
+          detailRow.style.display = 'none';
+          detailRow.innerHTML = `
+            <td colspan="7">
+              <div class="detail-grid">
+                <div class="detail-full">
+                  <div class="detail-label">Full Description</div>
+                  <div class="detail-value">${req.description}</div>
+                </div>
+                <div>
+                  <div class="detail-label">Category</div>
+                  <div class="detail-value">${req.category_name}</div>
+                </div>
+                <div>
+                  <div class="detail-label">Location</div>
+                  <div class="detail-value">Room ${req.room_number}, ${req.hostel_name}</div>
+                </div>
+                <div>
+                  <div class="detail-label">Date Raised</div>
+                  <div class="detail-value">${fmt.datetime(req.date_raised)}</div>
+                </div>
+              </div>
+            </td>
+          `;
+          
+          tbody.appendChild(dataRow);
+          tbody.appendChild(detailRow);
+        });
+      } catch (err) {
+        console.error('Error loading available requests:', err);
+        document.getElementById('availableError').textContent = 
+          'Failed to load available requests. Check your connection.';
+        document.getElementById('availableError').style.display = 'block';
+      }
+    }
+    
+    // Accept request
+    window.acceptRequest = async (requestId) => {
+      if (!confirm('Accept this request?')) return;
+      
+      try {
+        await api(`/staff/accept/${requestId}`, {
+          method: 'POST'
+        });
+        alert('Request accepted successfully!');
+        await loadAvailable();
+        await loadAssignments();
+      } catch (err) {
+        alert('Failed to accept request. It may have been taken by another staff member.');
+        await loadAvailable();
+      }
+    };
+    
     // Load assignments
     async function loadAssignments() {
       try {
@@ -82,7 +211,7 @@
           tbody.innerHTML = `
             <tr class="empty-row">
               <td colspan="9">
-                <div class="empty-state">No assignments yet.</div>
+                <div class="empty-state">No accepted jobs yet.</div>
               </td>
             </tr>
           `;
@@ -102,9 +231,7 @@
             : asn.description;
           
           let actionBtn = '';
-          if (asn.status === 'Assigned') {
-            actionBtn = `<button class="btn-inline" onclick="acceptAssignment(${asn.assignment_id})">Accept</button>`;
-          } else if (asn.status === 'Accepted') {
+          if (asn.status === 'Accepted') {
             actionBtn = `<button class="btn-inline primary" onclick="completeAssignment(${asn.assignment_id})">Complete</button>`;
           } else if (asn.status === 'Completed') {
             actionBtn = `<span class="btn-inline done">Done ✓</span>`;
@@ -151,6 +278,12 @@
                   <div class="detail-label">Assigned Date</div>
                   <div class="detail-value">${fmt.datetime(asn.assigned_date)}</div>
                 </div>
+                ${asn.completion_date ? `
+                  <div>
+                    <div class="detail-label">Completed Date</div>
+                    <div class="detail-value">${fmt.datetime(asn.completion_date)}</div>
+                  </div>
+                ` : ''}
               </div>
             </td>
           `;
@@ -166,28 +299,14 @@
       }
     }
     
-    // Accept assignment
-    window.acceptAssignment = async (assignmentId) => {
-      try {
-        await api(`/staff/assignment/${assignmentId}`, {
-          method: 'PUT',
-          body: JSON.stringify({ status: 'Accepted' })
-        });
-        await loadAssignments();
-      } catch (err) {
-        alert('Failed to accept assignment. Please try again.');
-      }
-    };
-    
     // Complete assignment
     window.completeAssignment = async (assignmentId) => {
+      if (!confirm('Mark this job as completed?')) return;
+      
       try {
         await api(`/staff/assignment/${assignmentId}`, {
           method: 'PUT',
-          body: JSON.stringify({ 
-            status: 'Completed',
-            completion_date: new Date().toISOString().split('T')[0]
-          })
+          body: JSON.stringify({ status: 'Completed' })
         });
         await loadAssignments();
       } catch (err) {
@@ -195,11 +314,20 @@
       }
     };
     
+    // Tab switching
+    window.switchTab = (tab) => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+      
+      document.getElementById('availableSection').style.display = tab === 'available' ? 'block' : 'none';
+      document.getElementById('myjobsSection').style.display = tab === 'myjobs' ? 'block' : 'none';
+    };
+    
     // Filter function
     window.applyFilters = () => {
       const status = document.getElementById('filter-status').value;
       
-      document.querySelectorAll('tbody tr.data-row').forEach(row => {
+      document.querySelectorAll('#assignmentsBody tr.data-row').forEach(row => {
         const match = !status || row.dataset.status === status;
         row.style.display = match ? '' : 'none';
         
@@ -218,6 +346,7 @@
     };
     
     // Initialize
+    loadAvailable();
     loadAssignments();
   </script>
 </body>

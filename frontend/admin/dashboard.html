@@ -95,28 +95,10 @@
               <th>Status</th>
               <th>Assigned To</th>
               <th>Date Raised</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody id="requestsBody"></tbody>
         </table>
-      </div>
-
-      <!-- Assign Modal -->
-      <div id="assignModal" class="modal" style="display: none;">
-        <div class="modal-content">
-          <h3 style="font-family: var(--mono); font-size: 11px; text-transform: uppercase; margin-bottom: 16px;">Assign Staff</h3>
-          <div class="field">
-            <label for="assignStaff">Select Staff Member</label>
-            <select id="assignStaff" required>
-              <option value="">Loading...</option>
-            </select>
-          </div>
-          <div style="margin-top: 16px; display: flex; gap: 12px;">
-            <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="confirmAssign()">Assign</button>
-            <button class="btn-ghost" onclick="closeAssignModal()">Cancel</button>
-          </div>
-        </div>
       </div>
 
       <!-- Staff Performance Section -->
@@ -260,7 +242,7 @@
       if (requests.length === 0) {
         tbody.innerHTML = `
           <tr class="empty-row">
-            <td colspan="9"><div class="empty-state">No requests found.</div></td>
+            <td colspan="8"><div class="empty-state">No requests found.</div></td>
           </tr>
         `;
         return;
@@ -275,13 +257,6 @@
         
         const statusClass = req.status.toLowerCase().replace(' ', '-');
         
-        let actionBtn = '';
-        if (req.status === 'Pending') {
-          actionBtn = `<button class="btn-inline" onclick="openAssignModal(${req.request_id}, ${req.category_id}, event)">Assign</button>`;
-        } else {
-          actionBtn = '—';
-        }
-        
         dataRow.innerHTML = `
           <td class="id">${fmt.id(req.request_id)}</td>
           <td>${req.student_name}</td>
@@ -291,21 +266,16 @@
           <td><span class="badge ${statusClass}">${req.status}</span></td>
           <td>${req.staff_name || '—'}</td>
           <td class="id">${fmt.date(req.date_raised)}</td>
-          <td>${actionBtn}</td>
         `;
         
-        dataRow.addEventListener('click', (e) => {
-          if (!e.target.closest('button')) {
-            toggleRow(dataRow, `detail-${req.request_id}`);
-          }
-        });
+        dataRow.addEventListener('click', () => toggleRow(dataRow, `detail-${req.request_id}`));
         
         const detailRow = document.createElement('tr');
         detailRow.id = `detail-${req.request_id}`;
         detailRow.className = 'detail-row';
         detailRow.style.display = 'none';
         detailRow.innerHTML = `
-          <td colspan="9">
+          <td colspan="8">
             <div class="detail-grid">
               <div class="detail-full">
                 <div class="detail-label">Full Description</div>
@@ -589,67 +559,6 @@
         loadStats();
       } catch (err) {
         alert('Failed to delete staff. They may have active assignments.');
-      }
-    };
-    
-    // Assign modal functions
-    let currentAssignRequest = null;
-    let currentAssignCategory = null;
-    
-    window.openAssignModal = async (requestId, categoryId, event) => {
-      event.stopPropagation();
-      currentAssignRequest = requestId;
-      currentAssignCategory = categoryId;
-      
-      const modal = document.getElementById('assignModal');
-      const select = document.getElementById('assignStaff');
-      
-      select.innerHTML = '<option value="">Loading...</option>';
-      modal.style.display = 'flex';
-      
-      try {
-        const staff = await api(`/admin/staff-by-category/${categoryId}`);
-        select.innerHTML = '<option value="">Select staff member</option>';
-        staff.forEach(s => {
-          const option = document.createElement('option');
-          option.value = s.staff_id;
-          option.textContent = `${s.name} (${s.specialization})`;
-          select.appendChild(option);
-        });
-      } catch (err) {
-        select.innerHTML = '<option value="">Error loading staff</option>';
-      }
-    };
-    
-    window.closeAssignModal = () => {
-      document.getElementById('assignModal').style.display = 'none';
-      currentAssignRequest = null;
-      currentAssignCategory = null;
-    };
-    
-    window.confirmAssign = async () => {
-      const staffId = document.getElementById('assignStaff').value;
-      
-      if (!staffId) {
-        alert('Please select a staff member');
-        return;
-      }
-      
-      try {
-        await api('/admin/assign', {
-          method: 'POST',
-          body: JSON.stringify({
-            request_id: currentAssignRequest,
-            staff_id: staffId
-          })
-        });
-        
-        closeAssignModal();
-        await loadRequests();
-        await loadStats();
-        alert('Staff assigned successfully!');
-      } catch (err) {
-        alert('Failed to assign staff. Please try again.');
       }
     };
     
