@@ -13,7 +13,7 @@ router.post('/student', async (req, res) => {
     }
 
     const [students] = await db.query(
-      'SELECT student_id, name, email, room_id, password_hash FROM Student WHERE student_id = ?',
+      'SELECT student_id, name, email, room_id, password FROM Student WHERE student_id = ?',
       [student_id]
     );
 
@@ -22,7 +22,8 @@ router.post('/student', async (req, res) => {
     }
 
     const student = students[0];
-    const validPassword = await bcrypt.compare(password, student.password_hash);
+    // Direct password comparison for development (passwords are plain text in DB)
+    const validPassword = password === student.password;
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -72,7 +73,7 @@ router.post('/staff', async (req, res) => {
     }
 
     const [staff] = await db.query(
-      'SELECT staff_id, name, specialization, password_hash FROM Staff WHERE staff_id = ?',
+      'SELECT staff_id, name, specialization, password FROM Staff WHERE staff_id = ?',
       [staff_id]
     );
 
@@ -81,7 +82,8 @@ router.post('/staff', async (req, res) => {
     }
 
     const staffMember = staff[0];
-    const validPassword = await bcrypt.compare(password, staffMember.password_hash);
+    // Direct password comparison for development (passwords are plain text in DB)
+    const validPassword = password === staffMember.password;
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -116,7 +118,7 @@ router.post('/warden', async (req, res) => {
     }
 
     const [wardens] = await db.query(
-      `SELECT w.warden_id, w.name, h.hostel_name, w.hostel_id, w.password_hash
+      `SELECT w.warden_id, w.name, h.hostel_name, w.hostel_id, w.password
        FROM Warden w
        JOIN Hostel h ON w.hostel_id = h.hostel_id
        WHERE w.warden_id = ?`,
@@ -128,7 +130,8 @@ router.post('/warden', async (req, res) => {
     }
 
     const warden = wardens[0];
-    const validPassword = await bcrypt.compare(password, warden.password_hash);
+    // Direct password comparison for development (passwords are plain text in DB)
+    const validPassword = password === warden.password;
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -146,6 +149,7 @@ router.post('/warden', async (req, res) => {
       warden_id: warden.warden_id,
       name: warden.name,
       hostel_name: warden.hostel_name,
+      hostel_id: warden.hostel_id,
       redirect: '/warden/dashboard.html'
     });
   } catch (err) {
@@ -158,6 +162,49 @@ router.post('/warden', async (req, res) => {
 router.post('/logout', (req, res) => {
   req.session.destroy();
   res.json({ redirect: '/' });
+});
+
+// POST /api/auth/admin
+router.post('/admin', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const [admins] = await db.query(
+      'SELECT admin_id, name, email, password FROM Admin WHERE email = ?',
+      [email]
+    );
+
+    if (admins.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const admin = admins[0];
+    // Direct password comparison for development
+    const validPassword = password === admin.password;
+
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    req.session.user = {
+      role: 'admin',
+      id: admin.admin_id,
+      name: admin.name
+    };
+
+    res.json({
+      admin_id: admin.admin_id,
+      name: admin.name,
+      redirect: '/admin/dashboard.html'
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Login failed' });
+  }
 });
 
 module.exports = router;

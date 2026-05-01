@@ -25,19 +25,25 @@ const fmt = {
 // Table row expand/collapse
 function toggleRow(triggerRow, detailRowId) {
   const detail = document.getElementById(detailRowId);
-  const isOpen = detail.style.display !== 'none';
+  if (!detail) return;
+  
+  const isOpen = detail.style.display === 'table-row' || (detail.style.display === '' && detail.offsetHeight > 0);
   
   // Close all open rows first
   document.querySelectorAll('tbody tr[data-detail]').forEach(r => {
     const detailId = r.dataset.detail;
     if (detailId) {
-      document.getElementById(detailId).style.display = 'none';
+      const detailEl = document.getElementById(detailId);
+      if (detailEl) {
+        detailEl.style.display = 'none';
+      }
       r.classList.remove('expanded');
     }
   });
   
+  // Open the clicked row if it wasn't already open
   if (!isOpen) {
-    detail.style.display = '';
+    detail.style.display = 'table-row';
     triggerRow.classList.add('expanded');
   }
 }

@@ -53,18 +53,13 @@
         <select id="filter-status" onchange="applyFilters()">
           <option value="">All Status</option>
           <option value="Pending">Pending</option>
-          <option value="In Progress">In Progress</option>
+          <option value="Assigned">Assigned</option>
+          <option value="Accepted">Accepted</option>
           <option value="Completed">Completed</option>
           <option value="Rejected">Rejected</option>
         </select>
         <select id="filter-category" onchange="applyFilters()">
           <option value="">All Categories</option>
-        </select>
-        <select id="filter-priority" onchange="applyFilters()">
-          <option value="">All Priorities</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
         </select>
         <div class="filter-spacer"></div>
         <button class="btn-ghost" onclick="exportData()">Export</button>
@@ -79,12 +74,10 @@
             <th>Student</th>
             <th>Room</th>
             <th>Category</th>
-            <th>Priority</th>
             <th>Status</th>
             <th>Assigned To</th>
             <th>Assigned Date</th>
-            <th>Last Updated</th>
-            <th>Action</th>
+            <th>Date Raised</th>
           </tr>
         </thead>
         <tbody id="requestsBody">
@@ -93,42 +86,8 @@
     </div>
   </div>
 
-  <div id="assignModal" style="display: none;">
-    <div class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <span id="modalTitle">Assign Staff</span>
-          <button class="modal-close" onclick="closeModal()">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="modal-warning" id="modalWarning"></div>
-          
-          <div class="field">
-            <label for="modalRequestId">Request ID</label>
-            <input type="text" id="modalRequestId" readonly>
-          </div>
-          
-          <div class="field">
-            <label for="modalStaff">Staff Member</label>
-            <select id="modalStaff" required>
-              <option value="">Select staff</option>
-            </select>
-          </div>
-          
-          <div class="field">
-            <label for="modalDate">Assignment Date</label>
-            <input type="text" id="modalDate" readonly>
-          </div>
-          
-          <button class="btn-primary" onclick="confirmAssignment()">Confirm Assignment</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script type="module">
-    import { session, api, fmt, toggleRow } from '../shared/util.js';
-    
+  <script src="../shared/util.js"></script>
+  <script>
     // Check auth
     if (!session.get('warden_id')) {
       window.location.href = 'login.html';
@@ -149,7 +108,7 @@
         
         document.getElementById('statTotal').textContent = stats.total || 0;
         document.getElementById('statPending').textContent = stats.pending || 0;
-        document.getElementById('statActive').textContent = stats.in_progress || 0;
+        document.getElementById('statActive').textContent = (stats.assigned || 0) + (stats.accepted || 0);
         document.getElementById('statDone').textContent = stats.completed || 0;
       } catch (err) {
         console.error('Failed to load stats:', err);
@@ -193,7 +152,7 @@
       if (requests.length === 0) {
         tbody.innerHTML = `
           <tr class="empty-row">
-            <td colspan="10">
+            <td colspan="8">
               <div class="empty-state">No requests found.</div>
             </td>
           </tr>
@@ -207,45 +166,37 @@
         dataRow.dataset.detail = `detail-${req.request_id}`;
         dataRow.dataset.status = req.status;
         dataRow.dataset.category = req.category_name;
-        dataRow.dataset.priority = req.priority;
         dataRow.style.animationDelay = `${0.03 + idx * 0.04}s`;
         
         const statusClass = req.status.toLowerCase().replace(' ', '-');
-        const priorityClass = req.priority.toLowerCase();
-        
-        let actionBtn = '';
-        if (!req.staff_name) {
-          actionBtn = `<button class="btn-inline" onclick="openAssignModal(${req.request_id}, '${req.category_name}', ${req.category_id})">Assign</button>`;
-        }
         
         dataRow.innerHTML = `
           <td class="id">${fmt.id(req.request_id)}</td>
           <td>${req.student_name}</td>
           <td class="id">${req.room_number}</td>
           <td>${req.category_name}</td>
-          <td><span class="badge ${priorityClass}">${req.priority}</span></td>
           <td><span class="badge ${statusClass}">${req.status}</span></td>
           <td>${req.staff_name || '—'}</td>
           <td>${req.assigned_date ? fmt.date(req.assigned_date) : '—'}</td>
-          <td class="id">${fmt.datetime(req.last_updated)}</td>
-          <td>${actionBtn}</td>
+          <td class="id">${fmt.datetime(req.date_raised)}</td>
         `;
         
-        dataRow.addEventListener('click', (e) => {
-          if (!e.target.closest('button')) {
-            toggleRow(dataRow, `detail-${req.request_id}`);
-          }
-        });
+        dataRow.addEventListener('click', () => toggleRow(dataRow, `detail-${req.request_id}`));
         
         const detailRow = document.createElement('tr');
         detailRow.id = `detail-${req.request_id}`;
         detailRow.className = 'detail-row';
+        detailRow.style.display = 'none';
         detailRow.innerHTML = `
-          <td colspan="10">
+          <td colspan="8">
             <div class="detail-grid">
               <div class="detail-full">
-                <div class="detail-label">Description</div>
+                <div class="detail-label">Full Description</div>
                 <div class="detail-value">${req.description}</div>
+              </div>
+              <div>
+                <div class="detail-label">Student Name</div>
+                <div class="detail-value">${req.student_name}</div>
               </div>
               <div>
                 <div class="detail-label">Student Email</div>
@@ -256,9 +207,40 @@
                 <div class="detail-value">${req.student_phone || 'N/A'}</div>
               </div>
               <div>
-                <div class="detail-label">Room Details</div>
+                <div class="detail-label">Location</div>
                 <div class="detail-value">Room ${req.room_number}, ${req.hostel_name}</div>
               </div>
+              <div>
+                <div class="detail-label">Category</div>
+                <div class="detail-value">${req.category_name}</div>
+              </div>
+              <div>
+                <div class="detail-label">Status</div>
+                <div class="detail-value"><span class="badge ${statusClass}">${req.status}</span></div>
+              </div>
+              <div>
+                <div class="detail-label">Date Raised</div>
+                <div class="detail-value">${fmt.datetime(req.date_raised)}</div>
+              </div>
+              ${req.staff_name ? `
+                <div class="detail-full" style="border-top: 1px solid var(--bdr); padding-top: 12px; margin-top: 12px;">
+                  <div class="detail-label">Assigned Staff Details</div>
+                </div>
+                <div>
+                  <div class="detail-label">Staff Name</div>
+                  <div class="detail-value">${req.staff_name}</div>
+                </div>
+                <div>
+                  <div class="detail-label">Assigned Date</div>
+                  <div class="detail-value">${fmt.datetime(req.assigned_date)}</div>
+                </div>
+                ${req.completion_date ? `
+                  <div>
+                    <div class="detail-label">Completion Date</div>
+                    <div class="detail-value">${fmt.datetime(req.completion_date)}</div>
+                  </div>
+                ` : ''}
+              ` : ''}
             </div>
           </td>
         `;
@@ -267,67 +249,6 @@
         tbody.appendChild(detailRow);
       });
     }
-    
-    // Open assign modal
-    window.openAssignModal = async (requestId, categoryName, categoryId) => {
-      currentRequestForAssignment = requestId;
-      
-      document.getElementById('modalRequestId').value = fmt.id(requestId);
-      document.getElementById('modalWarning').textContent = 
-        `Category: ${categoryName} · Only matching staff shown`;
-      document.getElementById('modalDate').value = new Date().toLocaleDateString('en-IN');
-      
-      // Load staff for category
-      try {
-        const staff = await api(`/staff/by-category/${categoryId}`);
-        const select = document.getElementById('modalStaff');
-        select.innerHTML = '<option value="">Select staff</option>';
-        
-        staff.forEach(s => {
-          const option = document.createElement('option');
-          option.value = s.staff_id;
-          option.textContent = `${s.name} (${s.specialization})`;
-          select.appendChild(option);
-        });
-        
-        document.getElementById('assignModal').style.display = 'block';
-      } catch (err) {
-        alert('Failed to load staff. Please try again.');
-      }
-    };
-    
-    // Close modal
-    window.closeModal = () => {
-      document.getElementById('assignModal').style.display = 'none';
-      currentRequestForAssignment = null;
-    };
-    
-    // Confirm assignment
-    window.confirmAssignment = async () => {
-      const staffId = document.getElementById('modalStaff').value;
-      
-      if (!staffId) {
-        alert('Please select a staff member');
-        return;
-      }
-      
-      try {
-        await api('/warden/assign', {
-          method: 'POST',
-          body: JSON.stringify({
-            request_id: currentRequestForAssignment,
-            staff_id: staffId,
-            assigned_date: new Date().toISOString().split('T')[0]
-          })
-        });
-        
-        closeModal();
-        await loadStats();
-        await loadRequests();
-      } catch (err) {
-        alert('Failed to assign staff. Please try again.');
-      }
-    };
     
     // Tab switching
     window.switchTab = (tab) => {
@@ -348,13 +269,11 @@
     window.applyFilters = () => {
       const status = document.getElementById('filter-status').value;
       const category = document.getElementById('filter-category').value;
-      const priority = document.getElementById('filter-priority').value;
       
       document.querySelectorAll('tbody tr.data-row').forEach(row => {
         const match =
           (!status || row.dataset.status === status) &&
-          (!category || row.dataset.category === category) &&
-          (!priority || row.dataset.priority === priority);
+          (!category || row.dataset.category === category);
         
         row.style.display = match ? '' : 'none';
         
@@ -369,16 +288,15 @@
     // Export data
     window.exportData = () => {
       const csv = [
-        ['ID', 'Student', 'Room', 'Category', 'Priority', 'Status', 'Assigned To', 'Last Updated'].join(','),
+        ['ID', 'Student', 'Room', 'Category', 'Status', 'Assigned To', 'Date Raised'].join(','),
         ...allRequests.map(r => [
           fmt.id(r.request_id),
           r.student_name,
           r.room_number,
           r.category_name,
-          r.priority,
           r.status,
           r.staff_name || 'Unassigned',
-          fmt.datetime(r.last_updated)
+          fmt.datetime(r.date_raised)
         ].join(','))
       ].join('\n');
       

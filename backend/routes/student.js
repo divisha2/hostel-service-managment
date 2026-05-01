@@ -5,7 +5,7 @@ const router = express.Router();
 
 // Validation helper
 function validateRaiseRequest(body) {
-  const { category_id, description, priority } = body;
+  const { category_id, description } = body;
   const errors = [];
 
   if (!category_id || !Number.isInteger(Number(category_id)) || Number(category_id) < 1) {
@@ -18,10 +18,6 @@ function validateRaiseRequest(body) {
 
   if (description && description.trim().length > 500) {
     errors.push('Description must be under 500 characters');
-  }
-
-  if (!['Low', 'Medium', 'High'].includes(priority)) {
-    errors.push('Priority must be Low, Medium, or High');
   }
 
   return errors;
@@ -37,14 +33,19 @@ router.get('/:id/requests', requireAuth('student'), async (req, res) => {
         sr.request_id,
         sc.name AS category_name,
         sr.description,
-        sr.priority,
         sr.status,
         sr.date_raised,
-        sr.last_updated,
+        h.hostel_name,
+        r.room_number,
         s.name AS staff_name,
+        s.phone AS staff_phone,
+        s.email AS staff_email,
         a.assigned_date
       FROM Service_Request sr
       JOIN Service_Category sc ON sr.category_id = sc.category_id
+      JOIN Student st ON sr.student_id = st.student_id
+      JOIN Room r ON st.room_id = r.room_id
+      JOIN Hostel h ON r.hostel_id = h.hostel_id
       LEFT JOIN Assignment a ON sr.request_id = a.request_id
       LEFT JOIN Staff s ON a.staff_id = s.staff_id
       WHERE sr.student_id = ?
@@ -62,29 +63,38 @@ router.get('/:id/requests', requireAuth('student'), async (req, res) => {
 // POST /api/student/request
 router.post('/request', requireAuth('student'), async (req, res) => {
   try {
+    console.log('Request body:', req.body);
+    console.log('Session user:', req.session.user);
+    
     const errors = validateRaiseRequest(req.body);
     if (errors.length) {
+      console.log('Validation errors:', errors);
       return res.status(400).json({ error: errors[0] });
     }
 
-    const { category_id, description, priority } = req.body;
+    const { category_id, description } = req.body;
     const studentId = req.session.user.id;
+    
+    console.log('Calling RaiseRequest with:', { studentId, category_id, description: description.trim() });
 
-    // Call stored procedure
+    // Call stored procedure with OUT parameter
     const [result] = await db.query(
-      'CALL RaiseRequest(?, ?, ?, ?)',
-      [studentId, category_id, description.trim(), priority]
+      'CALL RaiseRequest(?, ?, ?, @request_id)',
+      [studentId, category_id, description.trim()]
     );
 
-    // The procedure returns the new request_id in the first result set
-    const requestId = result[0][0].request_id;
+    // Get the OUT parameter value
+    const [rows] = await db.query('SELECT @request_id as request_id');
+    const requestId = rows[0].request_id;
+    
+    console.log('Request created with ID:', requestId);
 
     res.status(201).json({
       request_id: requestId,
       message: 'Request raised successfully'
     });
   } catch (err) {
-    console.error(err);
+    console.error('Error in POST /student/request:', err);
     res.status(500).json({ error: 'Failed to raise request' });
   }
 });

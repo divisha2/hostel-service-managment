@@ -41,9 +41,8 @@
     </div>
   </div>
 
-  <script type="module">
-    import { session, api, fmt } from '../shared/util.js';
-    
+  <script src="../shared/util.js"></script>
+  <script>
     // Check auth
     if (!session.get('warden_id')) {
       window.location.href = 'login.html';

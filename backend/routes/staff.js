@@ -14,9 +14,9 @@ router.get('/:id/assignments', requireAuth('staff'), async (req, res) => {
         sr.request_id,
         st.name AS student_name,
         r.room_number,
+        h.hostel_name,
         sc.name AS category_name,
         sr.description,
-        sr.priority,
         sr.status,
         a.assigned_date,
         a.completion_date
@@ -24,6 +24,7 @@ router.get('/:id/assignments', requireAuth('staff'), async (req, res) => {
       JOIN Service_Request sr ON a.request_id = sr.request_id
       JOIN Student st ON sr.student_id = st.student_id
       JOIN Room r ON st.room_id = r.room_id
+      JOIN Hostel h ON r.hostel_id = h.hostel_id
       JOIN Service_Category sc ON sr.category_id = sc.category_id
       WHERE a.staff_id = ?
       ORDER BY a.assigned_date DESC`,
@@ -45,7 +46,7 @@ router.put('/assignment/:id', requireAuth('staff'), async (req, res) => {
     const staffId = req.session.user.id;
 
     // Validate status
-    if (!['In Progress', 'Completed'].includes(status)) {
+    if (!['Assigned', 'Accepted', 'Completed'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
@@ -66,7 +67,7 @@ router.put('/assignment/:id', requireAuth('staff'), async (req, res) => {
 
     // Update request status
     await db.query(
-      'UPDATE Service_Request SET status = ?, last_updated = NOW() WHERE request_id = ?',
+      'UPDATE Service_Request SET status = ? WHERE request_id = ?',
       [status, requestId]
     );
 

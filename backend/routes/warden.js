@@ -18,13 +18,12 @@ router.get('/:id/requests', requireAuth('warden'), async (req, res) => {
         h.hostel_name,
         sc.name AS category_name,
         sc.category_id,
-        sr.priority,
         sr.status,
         sr.description,
         s.name AS staff_name,
         a.assigned_date,
-        sr.date_raised,
-        sr.last_updated
+        a.completion_date,
+        sr.date_raised
       FROM Service_Request sr
       JOIN Student st ON sr.student_id = st.student_id
       JOIN Room r ON st.room_id = r.room_id
@@ -48,11 +47,6 @@ router.get('/:id/requests', requireAuth('warden'), async (req, res) => {
       params.push(req.query.category_id);
     }
 
-    if (req.query.priority) {
-      sql += ' AND sr.priority = ?';
-      params.push(req.query.priority);
-    }
-
     sql += ' ORDER BY sr.date_raised DESC';
 
     const [requests] = await db.query(sql, params);
@@ -72,7 +66,8 @@ router.get('/:id/stats', requireAuth('warden'), async (req, res) => {
       `SELECT 
         COUNT(*) AS total,
         SUM(sr.status = 'Pending') AS pending,
-        SUM(sr.status = 'In Progress') AS in_progress,
+        SUM(sr.status = 'Assigned') AS assigned,
+        SUM(sr.status = 'Accepted') AS accepted,
         SUM(sr.status = 'Completed') AS completed
       FROM Service_Request sr
       JOIN Student st ON sr.student_id = st.student_id
@@ -150,9 +145,9 @@ router.post('/assign', requireAuth('warden'), async (req, res) => {
       [request_id, staff_id]
     );
 
-    // Update request status
+    // Update request status to Assigned
     await db.query(
-      "UPDATE Service_Request SET status = 'In Progress', last_updated = NOW() WHERE request_id = ?",
+      "UPDATE Service_Request SET status = 'Assigned' WHERE request_id = ?",
       [request_id]
     );
 

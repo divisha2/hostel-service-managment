@@ -23,6 +23,7 @@ app.use('/api/auth',    require('./routes/auth'));
 app.use('/api/student', require('./routes/student'));
 app.use('/api/staff',   require('./routes/staff'));
 app.use('/api/warden',  require('./routes/warden'));
+app.use('/api/admin',   require('./routes/admin'));
 app.use('/api',         require('./routes/shared'));
 
 // Global error handler

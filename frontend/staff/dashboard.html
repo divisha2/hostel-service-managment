@@ -26,8 +26,8 @@
         <span class="filter-label">Filter:</span>
         <select id="filter-status" onchange="applyFilters()">
           <option value="">All Status</option>
-          <option value="Pending">Pending</option>
-          <option value="In Progress">In Progress</option>
+          <option value="Assigned">Assigned</option>
+          <option value="Accepted">Accepted</option>
           <option value="Completed">Completed</option>
         </select>
       </div>
@@ -41,8 +41,8 @@
             <th>Req</th>
             <th>Student</th>
             <th>Room</th>
+            <th>Block</th>
             <th>Description</th>
-            <th>Priority</th>
             <th>Status</th>
             <th>Assigned</th>
             <th>Action</th>
@@ -54,11 +54,12 @@
     </div>
   </div>
 
-  <script type="module">
-    import { session, api, fmt, toggleRow } from '../shared/util.js';
-    
+  <script src="../shared/util.js"></script>
+  <script>
     // Check auth
+    console.log('Staff ID from session:', session.get('staff_id'));
     if (!session.get('staff_id')) {
+      console.log('No staff_id found, redirecting to login');
       window.location.href = 'login.html';
     }
     
@@ -70,7 +71,9 @@
     async function loadAssignments() {
       try {
         const staffId = session.get('staff_id');
+        console.log('Loading assignments for staff:', staffId);
         const assignments = await api(`/staff/${staffId}/assignments`);
+        console.log('Assignments loaded:', assignments);
         
         const tbody = document.getElementById('assignmentsBody');
         tbody.innerHTML = '';
@@ -94,15 +97,14 @@
           dataRow.style.animationDelay = `${0.03 + idx * 0.04}s`;
           
           const statusClass = asn.status.toLowerCase().replace(' ', '-');
-          const priorityClass = asn.priority.toLowerCase();
           const truncDesc = asn.description.length > 60 
             ? asn.description.substring(0, 60) + '...' 
             : asn.description;
           
           let actionBtn = '';
-          if (asn.status === 'Pending') {
+          if (asn.status === 'Assigned') {
             actionBtn = `<button class="btn-inline" onclick="acceptAssignment(${asn.assignment_id})">Accept</button>`;
-          } else if (asn.status === 'In Progress') {
+          } else if (asn.status === 'Accepted') {
             actionBtn = `<button class="btn-inline primary" onclick="completeAssignment(${asn.assignment_id})">Complete</button>`;
           } else if (asn.status === 'Completed') {
             actionBtn = `<span class="btn-inline done">Done ✓</span>`;
@@ -113,8 +115,8 @@
             <td class="id">${fmt.id(asn.request_id)}</td>
             <td>${asn.student_name}</td>
             <td class="id">${asn.room_number}</td>
+            <td>${asn.hostel_name}</td>
             <td>${truncDesc}</td>
-            <td><span class="badge ${priorityClass}">${asn.priority}</span></td>
             <td><span class="badge ${statusClass}">${asn.status}</span></td>
             <td>${fmt.date(asn.assigned_date)}</td>
             <td>${actionBtn}</td>
@@ -129,6 +131,7 @@
           const detailRow = document.createElement('tr');
           detailRow.id = `detail-${asn.assignment_id}`;
           detailRow.className = 'detail-row';
+          detailRow.style.display = 'none';
           detailRow.innerHTML = `
             <td colspan="9">
               <div class="detail-grid">
@@ -139,6 +142,10 @@
                 <div>
                   <div class="detail-label">Category</div>
                   <div class="detail-value">${asn.category_name}</div>
+                </div>
+                <div>
+                  <div class="detail-label">Location</div>
+                  <div class="detail-value">Room ${asn.room_number}, ${asn.hostel_name}</div>
                 </div>
                 <div>
                   <div class="detail-label">Assigned Date</div>
@@ -152,6 +159,7 @@
           tbody.appendChild(detailRow);
         });
       } catch (err) {
+        console.error('Error loading assignments:', err);
         document.getElementById('errorBanner').textContent = 
           'Failed to load data. Check your connection.';
         document.getElementById('errorBanner').style.display = 'block';
@@ -163,7 +171,7 @@
       try {
         await api(`/staff/assignment/${assignmentId}`, {
           method: 'PUT',
-          body: JSON.stringify({ status: 'In Progress' })
+          body: JSON.stringify({ status: 'Accepted' })
         });
         await loadAssignments();
       } catch (err) {

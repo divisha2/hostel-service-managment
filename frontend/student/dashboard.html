@@ -35,15 +35,6 @@
           </div>
           
           <div class="field">
-            <label for="priority">Priority</label>
-            <select id="priority" name="priority" required>
-              <option value="Low">Low</option>
-              <option value="Medium" selected>Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
-          
-          <div class="field">
             <label for="description">Description</label>
             <textarea id="description" name="description" placeholder="Describe the issue (min 10 characters)" required></textarea>
             <div id="description-error" class="field-error"></div>
@@ -66,7 +57,6 @@
             <tr>
               <th>#</th>
               <th>Category</th>
-              <th>Priority</th>
               <th>Status</th>
               <th>Raised</th>
             </tr>
@@ -78,9 +68,8 @@
     </div>
   </div>
 
-  <script type="module">
-    import { session, api, fmt, toggleRow } from '../shared/util.js';
-    
+  <script src="../shared/util.js"></script>
+  <script>
     // Check auth
     if (!session.get('student_id')) {
       window.location.href = 'login.html';
@@ -120,7 +109,7 @@
         if (requests.length === 0) {
           tbody.innerHTML = `
             <tr class="empty-row">
-              <td colspan="5">
+              <td colspan="4">
                 <div class="empty-state">No requests raised yet.</div>
               </td>
             </tr>
@@ -135,12 +124,10 @@
           dataRow.style.animationDelay = `${0.03 + idx * 0.04}s`;
           
           const statusClass = req.status.toLowerCase().replace(' ', '-');
-          const priorityClass = req.priority.toLowerCase();
           
           dataRow.innerHTML = `
             <td class="id">${fmt.id(req.request_id)}</td>
             <td>${req.category_name}</td>
-            <td><span class="badge ${priorityClass}">${req.priority}</span></td>
             <td><span class="badge ${statusClass}">${req.status}</span></td>
             <td>${fmt.date(req.date_raised)}</td>
           `;
@@ -150,21 +137,37 @@
           const detailRow = document.createElement('tr');
           detailRow.id = `detail-${req.request_id}`;
           detailRow.className = 'detail-row';
+          detailRow.style.display = 'none';
           detailRow.innerHTML = `
-            <td colspan="5">
+            <td colspan="4">
               <div class="detail-grid">
                 <div class="detail-full">
                   <div class="detail-label">Description</div>
                   <div class="detail-value">${req.description}</div>
                 </div>
                 <div>
-                  <div class="detail-label">Last Updated</div>
-                  <div class="detail-value">${fmt.datetime(req.last_updated)}</div>
+                  <div class="detail-label">Location</div>
+                  <div class="detail-value">Room ${req.room_number}, ${req.hostel_name}</div>
+                </div>
+                <div>
+                  <div class="detail-label">Date Raised</div>
+                  <div class="detail-value">${fmt.datetime(req.date_raised)}</div>
                 </div>
                 ${req.staff_name ? `
+                  <div class="detail-full" style="border-top: 1px solid var(--bdr); padding-top: 12px; margin-top: 12px;">
+                    <div class="detail-label">Assigned Staff Details</div>
+                  </div>
                   <div>
-                    <div class="detail-label">Assigned To</div>
+                    <div class="detail-label">Staff Name</div>
                     <div class="detail-value">${req.staff_name}</div>
+                  </div>
+                  <div>
+                    <div class="detail-label">Contact Phone</div>
+                    <div class="detail-value">${req.staff_phone || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div class="detail-label">Contact Email</div>
+                    <div class="detail-value">${req.staff_email || 'N/A'}</div>
                   </div>
                   <div>
                     <div class="detail-label">Assigned Date</div>
@@ -217,9 +220,7 @@
       if (!validateForm()) return;
       
       const formData = {
-        student_id: session.get('student_id'),
         category_id: document.getElementById('category').value,
-        priority: document.getElementById('priority').value,
         description: document.getElementById('description').value.trim()
       };
       
@@ -241,6 +242,7 @@
         
         await loadRequests();
       } catch (err) {
+        console.error('Error submitting request:', err);
         alert('Failed to submit request. Please try again.');
       }
     });

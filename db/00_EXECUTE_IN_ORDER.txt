@@ -1,0 +1,39 @@
+HSRMS Database Setup - Execute SQL Files in This Order
+======================================================
+
+Run these files in MySQL Workbench or command line in this exact sequence:
+
+1. db/01_schema.sql      - Creates all 10 tables
+2. db/02_seed.sql        - Inserts sample data
+3. db/03_views.sql       - Creates 3 views
+4. db/04_procedures.sql  - Creates 2 stored procedures
+5. db/05_functions.sql   - Creates 2 functions
+6. db/06_triggers.sql    - Creates 3 triggers
+7. db/07_queries.sql     - 10 demonstration queries (run individually)
+
+Command Line Method:
+--------------------
+mysql -u root -p < db/01_schema.sql
+mysql -u root -p < db/02_seed.sql
+mysql -u root -p < db/03_views.sql
+mysql -u root -p < db/04_procedures.sql
+mysql -u root -p < db/05_functions.sql
+mysql -u root -p < db/06_triggers.sql
+
+MySQL Workbench Method:
+------------------------
+Open each file and click Execute (lightning bolt icon)
+
+Test Credentials After Setup:
+------------------------------
+Student: ID 1-9, Password: pass123
+Staff: ID 1-8, Password: pass123
+Warden: ID 1-3, Password: pass123
+Admin: Email: admin@hostel.in, Password: admin123
+
+Access URLs:
+------------
+http://localhost:3000/student/login.html
+http://localhost:3000/staff/login.html
+http://localhost:3000/warden/login.html
+http://localhost:3000/admin/login.html

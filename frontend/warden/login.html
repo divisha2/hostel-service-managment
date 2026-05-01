@@ -31,9 +31,8 @@
     </div>
   </div>
 
-  <script type="module">
-    import { session, api } from '../shared/util.js';
-    
+  <script src="../shared/util.js"></script>
+  <script>
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -52,10 +51,12 @@
         session.set('warden_id', res.warden_id);
         session.set('name', res.name);
         session.set('hostel_name', res.hostel_name);
+        session.set('hostel_id', res.hostel_id);
         session.set('role', 'warden');
         
         window.location.href = 'dashboard.html';
       } catch (err) {
+        console.error('Login error:', err);
         errorEl.textContent = 'Invalid credentials. Please try again.';
         errorEl.style.display = 'block';
       }
