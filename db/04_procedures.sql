@@ -41,7 +41,7 @@ END$$
 
 -- ──────────────────────────────────────────────────────────────
 -- Procedure 2: AssignStaff
--- Purpose : Warden assigns a staff member to a pending request
+-- Purpose :assigns a staff member to a pending request
 -- Validates: request is Pending, not already assigned,
 --            staff specialization matches request category
 -- Called by: Backend POST /api/warden/assignments

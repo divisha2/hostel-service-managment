@@ -106,63 +106,6 @@ router.get('/staff/by-category/:category_id', requireAuth('warden'), async (req,
   }
 });
 
-// POST /api/warden/assign
-router.post('/assign', requireAuth('warden'), async (req, res) => {
-  try {
-    const { request_id, staff_id } = req.body;
-    const hostelId = req.session.user.hostel_id;
-
-    // Validate input
-    if (!request_id || !staff_id || !Number.isInteger(Number(request_id)) || !Number.isInteger(Number(staff_id))) {
-      return res.status(400).json({ error: 'Invalid request or staff ID' });
-    }
-
-    // Verify request belongs to warden's hostel
-    const [requests] = await db.query(
-      `SELECT sr.request_id
-       FROM Service_Request sr
-       JOIN Student st ON sr.student_id = st.student_id
-       JOIN Room r ON st.room_id = r.room_id
-       WHERE sr.request_id = ? AND r.hostel_id = ?`,
-      [request_id, hostelId]
-    );
-
-    if (requests.length === 0) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    // Check for duplicate assignment
-    const [existing] = await db.query(
-      'SELECT assignment_id FROM Assignment WHERE request_id = ?',
-      [request_id]
-    );
-
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Request already assigned' });
-    }
-
-    // Insert assignment
-    const [result] = await db.query(
-      'INSERT INTO Assignment (request_id, staff_id, assigned_date) VALUES (?, ?, NOW())',
-      [request_id, staff_id]
-    );
-
-    // Update request status to Assigned
-    await db.query(
-      "UPDATE Service_Request SET status = 'Assigned' WHERE request_id = ?",
-      [request_id]
-    );
-
-    res.status(201).json({
-      assignment_id: result.insertId,
-      message: 'Staff assigned'
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to assign staff' });
-  }
-});
-
 // GET /api/warden/:id/audit-log
 router.get('/:id/audit-log', requireAuth('warden'), async (req, res) => {
   try {

@@ -80,8 +80,6 @@ LEFT JOIN Staff       st ON a.staff_id     = st.staff_id;
 
 
 -- ──────────────────────────────────────────────────────────────
--- Verify views after running (uncomment to test)
--- ──────────────────────────────────────────────────────────────
 -- SELECT * FROM StudentRequestView   WHERE student_id = 1;
 -- SELECT * FROM StaffAssignmentView  WHERE staff_id   = 1;
 -- SELECT * FROM WardenOversightView  WHERE hostel_id  = 1;

@@ -41,83 +41,6 @@ router.get('/:id/assignments', requireAuth('staff'), async (req, res) => {
 // GET /api/staff/:id/available - Get available requests for staff to accept
 router.get('/:id/available', requireAuth('staff'), async (req, res) => {
   try {
-    const staffId = req.session.user.id;
-    const specialization = req.session.user.specialization;
-
-    const [available] = await db.query(
-      `SELECT 
-        sr.request_id,
-        st.name AS student_name,
-        r.room_number,
-        h.hostel_name,
-        sc.name AS category_name,
-        sr.description,
-        sr.status,
-        sr.date_raised
-      FROM Service_Request sr
-      JOIN Student st ON sr.student_id = st.student_id
-      JOIN Room r ON st.room_id = r.room_id
-      JOIN Hostel h ON r.hostel_id = h.hostel_id
-      JOIN Service_Category sc ON sr.category_id = sc.category_id
-      WHERE sr.status = 'Pending'
-        AND sc.name = ?
-        AND NOT EXISTS (
-          SELECT 1 FROM Assignment a WHERE a.request_id = sr.request_id
-        )
-      ORDER BY sr.date_raised ASC`,
-      [specialization]
-    );
-
-    res.json(available);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch available requests' });
-  }
-});
-
-// POST /api/staff/accept/:request_id - Accept a request
-router.post('/accept/:request_id', requireAuth('staff'), async (req, res) => {
-  try {
-    const requestId = req.params.request_id;
-    const staffId = req.session.user.id;
-
-    // Check if request is still pending
-    const [requests] = await db.query(
-      'SELECT status FROM Service_Request WHERE request_id = ?',
-      [requestId]
-    );
-
-    if (requests.length === 0) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-
-    if (requests[0].status !== 'Pending') {
-      return res.status(400).json({ error: 'Request is no longer available' });
-    }
-
-    // Create assignment
-    await db.query(
-      'INSERT INTO Assignment (request_id, staff_id, assigned_date) VALUES (?, ?, NOW())',
-      [requestId, staffId]
-    );
-
-    // Update request status
-    await db.query(
-      "UPDATE Service_Request SET status = 'Accepted' WHERE request_id = ?",
-      [requestId]
-    );
-
-    res.json({ message: 'Request accepted successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to accept request' });
-  }
-});
-
-// GET /api/staff/:id/available - Get available pending requests matching staff category
-router.get('/:id/available', requireAuth('staff'), async (req, res) => {
-  try {
-    const staffId = req.session.user.id;
     const specialization = req.session.user.specialization;
 
     const [available] = await db.query(
@@ -157,50 +80,31 @@ router.post('/accept/:request_id', requireAuth('staff'), async (req, res) => {
     const requestId = req.params.request_id;
     const staffId = req.session.user.id;
 
-    // Check if request is still pending and not assigned
-    const [requests] = await db.query(
-      'SELECT status FROM Service_Request WHERE request_id = ?',
-      [requestId]
-    );
-
-    if (requests.length === 0) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-
-    if (requests[0].status !== 'Pending') {
-      return res.status(400).json({ error: 'Request is no longer available' });
-    }
-
-    // Check if already assigned
-    const [existing] = await db.query(
-      'SELECT assignment_id FROM Assignment WHERE request_id = ?',
-      [requestId]
-    );
-
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Request already assigned' });
-    }
-
-    // Create assignment
+    // Call stored procedure with OUT parameter
     await db.query(
-      'INSERT INTO Assignment (request_id, staff_id, assigned_date) VALUES (?, ?, NOW())',
+      'CALL AcceptRequest(?, ?, @assignment_id)',
       [requestId, staffId]
     );
 
-    // Update request status to Accepted
-    await db.query(
-      "UPDATE Service_Request SET status = 'Accepted' WHERE request_id = ?",
-      [requestId]
-    );
+    // Get the OUT parameter value
+    const [rows] = await db.query('SELECT @assignment_id as assignment_id');
+    const assignmentId = rows[0].assignment_id;
 
-    res.json({ message: 'Request accepted successfully' });
+    res.json({ 
+      assignment_id: assignmentId,
+      message: 'Request accepted successfully' 
+    });
   } catch (err) {
     console.error(err);
+    // Handle specific error messages from stored procedure
+    if (err.sqlMessage) {
+      return res.status(400).json({ error: err.sqlMessage });
+    }
     res.status(500).json({ error: 'Failed to accept request' });
   }
 });
 
-// PUT /api/staff/assignment/:id - Update assignment status
+// PUT /api/staff/assignment/:id - Mark assignment as completed
 router.put('/assignment/:id', requireAuth('staff'), async (req, res) => {
   try {
     const assignmentId = req.params.id;
@@ -208,42 +112,23 @@ router.put('/assignment/:id', requireAuth('staff'), async (req, res) => {
     const staffId = req.session.user.id;
 
     // Validate status
-    if (!['Accepted', 'Completed'].includes(status)) {
+    if (status !== 'Completed') {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Verify ownership
-    const [assignments] = await db.query(
-      `SELECT sr.request_id 
-       FROM Assignment a
-       JOIN Service_Request sr ON a.request_id = sr.request_id
-       WHERE a.assignment_id = ? AND a.staff_id = ?`,
+    // Call stored procedure
+    await db.query(
+      'CALL CompleteAssignment(?, ?)',
       [assignmentId, staffId]
     );
-
-    if (assignments.length === 0) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
-    const requestId = assignments[0].request_id;
-
-    // Update request status
-    await db.query(
-      'UPDATE Service_Request SET status = ? WHERE request_id = ?',
-      [status, requestId]
-    );
-
-    // If completed, update completion_date
-    if (status === 'Completed') {
-      await db.query(
-        'UPDATE Assignment SET completion_date = NOW() WHERE assignment_id = ?',
-        [assignmentId]
-      );
-    }
 
     res.json({ message: 'Status updated' });
   } catch (err) {
     console.error(err);
+    // Handle specific error messages from stored procedure
+    if (err.sqlMessage) {
+      return res.status(403).json({ error: err.sqlMessage });
+    }
     res.status(500).json({ error: 'Failed to update status' });
   }
 });

@@ -88,14 +88,23 @@ router.post('/staff', requireAuth('admin'), async (req, res) => {
   try {
     const { name, phone, email, password, specialization } = req.body;
     
-    const [result] = await db.query(
-      'INSERT INTO Staff (name, phone, email, password, specialization) VALUES (?, ?, ?, ?, ?)',
+    // Call stored procedure with OUT parameter
+    await db.query(
+      'CALL AddStaff(?, ?, ?, ?, ?, @staff_id)',
       [name, phone, email, password, specialization]
     );
     
-    res.status(201).json({ staff_id: result.insertId, message: 'Staff added successfully' });
+    // Get the OUT parameter value
+    const [rows] = await db.query('SELECT @staff_id as staff_id');
+    const staffId = rows[0].staff_id;
+    
+    res.status(201).json({ staff_id: staffId, message: 'Staff added successfully' });
   } catch (err) {
     console.error(err);
+    // Handle specific error messages from stored procedure
+    if (err.sqlMessage) {
+      return res.status(400).json({ error: err.sqlMessage });
+    }
     res.status(500).json({ error: 'Failed to add staff' });
   }
 });
@@ -105,11 +114,16 @@ router.delete('/staff/:id', requireAuth('admin'), async (req, res) => {
   try {
     const staffId = req.params.id;
     
-    await db.query('DELETE FROM Staff WHERE staff_id = ?', [staffId]);
+    // Call stored procedure
+    await db.query('CALL DeleteStaff(?)', [staffId]);
     
     res.json({ message: 'Staff deleted successfully' });
   } catch (err) {
     console.error(err);
+    // Handle specific error messages from stored procedure
+    if (err.sqlMessage) {
+      return res.status(400).json({ error: err.sqlMessage });
+    }
     res.status(500).json({ error: 'Failed to delete staff' });
   }
 });
@@ -132,48 +146,6 @@ router.get('/staff-by-category/:category_id', requireAuth('admin'), async (req, 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch staff' });
-  }
-});
-
-// POST /api/admin/assign - Assign request to staff
-router.post('/assign', requireAuth('admin'), async (req, res) => {
-  try {
-    const { request_id, staff_id } = req.body;
-
-    // Validate input
-    if (!request_id || !staff_id || !Number.isInteger(Number(request_id)) || !Number.isInteger(Number(staff_id))) {
-      return res.status(400).json({ error: 'Invalid request or staff ID' });
-    }
-
-    // Check for duplicate assignment
-    const [existing] = await db.query(
-      'SELECT assignment_id FROM Assignment WHERE request_id = ?',
-      [request_id]
-    );
-
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Request already assigned' });
-    }
-
-    // Insert assignment
-    const [result] = await db.query(
-      'INSERT INTO Assignment (request_id, staff_id, assigned_date) VALUES (?, ?, NOW())',
-      [request_id, staff_id]
-    );
-
-    // Update request status to Assigned
-    await db.query(
-      "UPDATE Service_Request SET status = 'Assigned' WHERE request_id = ?",
-      [request_id]
-    );
-
-    res.status(201).json({
-      assignment_id: result.insertId,
-      message: 'Staff assigned successfully'
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to assign staff' });
   }
 });
 
