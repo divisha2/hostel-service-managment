@@ -48,7 +48,8 @@ router.get('/staff-performance', requireAuth('admin'), async (req, res) => {
         s.email,
         COUNT(a.assignment_id) AS total_assignments,
         SUM(CASE WHEN sr.status = 'Accepted' THEN 1 ELSE 0 END) AS accepted_count,
-        SUM(CASE WHEN sr.status = 'Completed' THEN 1 ELSE 0 END) AS completed_count
+        SUM(CASE WHEN sr.status = 'Completed' THEN 1 ELSE 0 END) AS completed_count,
+        GetStaffCompletionRate(s.staff_id) AS completion_rate
       FROM Staff s
       LEFT JOIN Assignment a ON s.staff_id = a.staff_id
       LEFT JOIN Service_Request sr ON a.request_id = sr.request_id

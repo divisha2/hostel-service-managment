@@ -38,6 +38,10 @@
           <div class="stat-num done" id="statDone">0</div>
           <div class="stat-label">Completed</div>
         </div>
+        <div class="stat">
+          <div class="stat-num" style="color: var(--ink);" id="statCompletionRate">0%</div>
+          <div class="stat-label">Completion Rate</div>
+        </div>
       </div>
 
       <div class="tab-row">
@@ -110,6 +114,7 @@
         document.getElementById('statPending').textContent = stats.pending || 0;
         document.getElementById('statActive').textContent = (stats.assigned || 0) + (stats.accepted || 0);
         document.getElementById('statDone').textContent = stats.completed || 0;
+        document.getElementById('statCompletionRate').textContent = (stats.completion_rate || 0) + '%';
       } catch (err) {
         console.error('Failed to load stats:', err);
       }

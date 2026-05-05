@@ -68,12 +68,14 @@ router.get('/:id/stats', requireAuth('warden'), async (req, res) => {
         SUM(sr.status = 'Pending') AS pending,
         SUM(sr.status = 'Assigned') AS assigned,
         SUM(sr.status = 'Accepted') AS accepted,
-        SUM(sr.status = 'Completed') AS completed
+        SUM(sr.status = 'Completed') AS completed,
+        GetPendingCount(?) AS pending_count_func,
+        GetCompletionRate(?) AS completion_rate
       FROM Service_Request sr
       JOIN Student st ON sr.student_id = st.student_id
       JOIN Room r ON st.room_id = r.room_id
       WHERE r.hostel_id = ?`,
-      [hostelId]
+      [hostelId, hostelId, hostelId]
     );
 
     res.json(stats[0]);

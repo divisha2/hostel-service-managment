@@ -356,9 +356,7 @@
         dataRow.dataset.detail = `staff-detail-${s.staff_id}`;
         dataRow.style.animationDelay = `${0.03 + idx * 0.04}s`;
         
-        const completionRate = s.total_assignments > 0 
-          ? Math.round((s.completed_count / s.total_assignments) * 100) 
-          : 0;
+        const completionRate = s.completion_rate || 0;
         
         dataRow.innerHTML = `
           <td class="id">${s.staff_id}</td>

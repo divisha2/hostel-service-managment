@@ -1,6 +1,11 @@
 USE hsrms;
 
-DELIMITER $$
+-- Drop existing functions if they exist
+DROP FUNCTION IF EXISTS GetPendingCount;
+DROP FUNCTION IF EXISTS GetCompletionRate;
+DROP FUNCTION IF EXISTS GetStaffCompletionRate;
+
+DELIMITER $
 
 -- ──────────────────────────────────────────────────────────────
 -- Function 1: GetPendingCount
@@ -22,7 +27,7 @@ BEGIN
       AND sr.status   = 'Pending';
 
     RETURN v_count;
-END$$
+END$
 
 
 -- ──────────────────────────────────────────────────────────────
@@ -56,7 +61,39 @@ BEGIN
       AND sr.status   = 'Completed';
 
     RETURN ROUND((v_completed / v_total) * 100, 2);
-END$$
+END$
+
+
+-- ──────────────────────────────────────────────────────────────
+-- Function 3: GetStaffCompletionRate
+-- Purpose : Returns completion % for a given staff member (0.00–100.00)
+-- Called by: Admin staff performance query
+-- ──────────────────────────────────────────────────────────────
+CREATE FUNCTION GetStaffCompletionRate(p_staff_id INT)
+RETURNS DECIMAL(5,2)
+READS SQL DATA
+DETERMINISTIC
+BEGIN
+    DECLARE v_total     INT;
+    DECLARE v_completed INT;
+
+    SELECT COUNT(*) INTO v_total
+    FROM Assignment a
+    JOIN Service_Request sr ON a.request_id = sr.request_id
+    WHERE a.staff_id = p_staff_id;
+
+    IF v_total = 0 THEN
+        RETURN 0.00;
+    END IF;
+
+    SELECT COUNT(*) INTO v_completed
+    FROM Assignment a
+    JOIN Service_Request sr ON a.request_id = sr.request_id
+    WHERE a.staff_id = p_staff_id
+      AND sr.status = 'Completed';
+
+    RETURN ROUND((v_completed / v_total) * 100, 2);
+END$
 
 DELIMITER ;
 
@@ -64,7 +101,9 @@ DELIMITER ;
 -- ──────────────────────────────────────────────────────────────
 -- Test calls (uncomment to run in Workbench)
 -- ──────────────────────────────────────────────────────────────
--- SELECT GetPendingCount(1);       -- pending count for Kaveri Block
--- SELECT GetPendingCount(2);       -- pending count for Godavari Block
--- SELECT GetCompletionRate(1);     -- completion % for Kaveri Block
--- SELECT GetCompletionRate(2);     -- completion % for Godavari Block
+-- SELECT GetPendingCount(1);        -- pending count for Kaveri Block
+-- SELECT GetPendingCount(2);        -- pending count for Godavari Block
+-- SELECT GetCompletionRate(1);      -- completion % for Kaveri Block
+-- SELECT GetCompletionRate(2);      -- completion % for Godavari Block
+-- SELECT GetStaffCompletionRate(1); -- completion % for staff ID 1
+-- SELECT GetStaffCompletionRate(2); -- completion % for staff ID 2

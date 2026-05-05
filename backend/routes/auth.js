@@ -168,6 +168,7 @@ router.post('/logout', (req, res) => {
 router.post('/admin', async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Admin login attempt:', { email, password: '***' });
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' });
@@ -178,11 +179,16 @@ router.post('/admin', async (req, res) => {
       [email]
     );
 
+    console.log('Admin query result:', admins.length > 0 ? 'Found' : 'Not found');
+
     if (admins.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const admin = admins[0];
+    console.log('Admin found:', { id: admin.admin_id, name: admin.name, email: admin.email });
+    console.log('Password match:', password === admin.password);
+    
     // Direct password comparison for development
     const validPassword = password === admin.password;
 
@@ -196,13 +202,15 @@ router.post('/admin', async (req, res) => {
       name: admin.name
     };
 
+    console.log('Admin login successful');
+
     res.json({
       admin_id: admin.admin_id,
       name: admin.name,
       redirect: '/admin/dashboard.html'
     });
   } catch (err) {
-    console.error(err);
+    console.error('Admin login error:', err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
