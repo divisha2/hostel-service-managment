@@ -28,28 +28,27 @@ router.get('/:id/requests', requireAuth('student'), async (req, res) => {
   try {
     const studentId = req.session.user.id;
 
+    // Use StudentRequestView with additional room/hostel info
     const [requests] = await db.query(
       `SELECT 
-        sr.request_id,
-        sc.name AS category_name,
-        sr.description,
-        sr.status,
-        sr.date_raised,
+        srv.request_id,
+        srv.category AS category_name,
+        srv.description,
+        srv.status,
+        srv.date_raised,
         h.hostel_name,
         r.room_number,
-        s.name AS staff_name,
-        s.phone AS staff_phone,
-        s.email AS staff_email,
-        a.assigned_date
-      FROM Service_Request sr
-      JOIN Service_Category sc ON sr.category_id = sc.category_id
-      JOIN Student st ON sr.student_id = st.student_id
-      JOIN Room r ON st.room_id = r.room_id
+        srv.staff_name,
+        st.phone AS staff_phone,
+        st.email AS staff_email,
+        srv.assigned_date
+      FROM StudentRequestView srv
+      JOIN Student s ON srv.student_id = s.student_id
+      JOIN Room r ON s.room_id = r.room_id
       JOIN Hostel h ON r.hostel_id = h.hostel_id
-      LEFT JOIN Assignment a ON sr.request_id = a.request_id
-      LEFT JOIN Staff s ON a.staff_id = s.staff_id
-      WHERE sr.student_id = ?
-      ORDER BY sr.date_raised DESC`,
+      LEFT JOIN Staff st ON srv.staff_name = st.name
+      WHERE srv.student_id = ?
+      ORDER BY srv.date_raised DESC`,
       [studentId]
     );
 

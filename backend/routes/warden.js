@@ -8,46 +8,42 @@ router.get('/:id/requests', requireAuth('warden'), async (req, res) => {
   try {
     const hostelId = req.session.user.hostel_id;
 
+    // Use WardenOversightView
     let sql = `
       SELECT 
-        sr.request_id,
-        st.name AS student_name,
-        st.email AS student_email,
-        st.phone AS student_phone,
-        r.room_number,
-        h.hostel_name,
-        sc.name AS category_name,
+        request_id,
+        student_name,
+        student_email,
+        student_phone,
+        room_number,
+        hostel_name,
+        category AS category_name,
         sc.category_id,
-        sr.status,
-        sr.description,
-        s.name AS staff_name,
-        a.assigned_date,
-        a.completion_date,
-        sr.date_raised
-      FROM Service_Request sr
-      JOIN Student st ON sr.student_id = st.student_id
-      JOIN Room r ON st.room_id = r.room_id
-      JOIN Hostel h ON r.hostel_id = h.hostel_id
-      JOIN Service_Category sc ON sr.category_id = sc.category_id
-      LEFT JOIN Assignment a ON sr.request_id = a.request_id
-      LEFT JOIN Staff s ON a.staff_id = s.staff_id
-      WHERE h.hostel_id = ?
+        status,
+        description,
+        staff_name,
+        assigned_date,
+        completion_date,
+        date_raised
+      FROM WardenOversightView wov
+      JOIN Service_Category sc ON wov.category = sc.name
+      WHERE hostel_id = ?
     `;
 
     const params = [hostelId];
 
     // Apply filters
     if (req.query.status) {
-      sql += ' AND sr.status = ?';
+      sql += ' AND status = ?';
       params.push(req.query.status);
     }
 
     if (req.query.category_id) {
-      sql += ' AND sr.category_id = ?';
+      sql += ' AND sc.category_id = ?';
       params.push(req.query.category_id);
     }
 
-    sql += ' ORDER BY sr.date_raised DESC';
+    sql += ' ORDER BY date_raised DESC';
 
     const [requests] = await db.query(sql, params);
     res.json(requests);

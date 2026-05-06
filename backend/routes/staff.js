@@ -8,26 +8,24 @@ router.get('/:id/assignments', requireAuth('staff'), async (req, res) => {
   try {
     const staffId = req.session.user.id;
 
+    // Use StaffAssignmentView with additional hostel info
     const [assignments] = await db.query(
       `SELECT 
-        a.assignment_id,
-        sr.request_id,
-        st.name AS student_name,
-        r.room_number,
+        sav.assignment_id,
+        sav.request_id,
+        sav.student_name,
+        sav.room_number,
         h.hostel_name,
-        sc.name AS category_name,
-        sr.description,
-        sr.status,
-        a.assigned_date,
-        a.completion_date
-      FROM Assignment a
-      JOIN Service_Request sr ON a.request_id = sr.request_id
-      JOIN Student st ON sr.student_id = st.student_id
-      JOIN Room r ON st.room_id = r.room_id
+        sav.category AS category_name,
+        sav.description,
+        sav.status,
+        sav.assigned_date,
+        sav.completion_date
+      FROM StaffAssignmentView sav
+      JOIN Room r ON sav.room_number = r.room_number
       JOIN Hostel h ON r.hostel_id = h.hostel_id
-      JOIN Service_Category sc ON sr.category_id = sc.category_id
-      WHERE a.staff_id = ?
-      ORDER BY a.assigned_date DESC`,
+      WHERE sav.staff_id = ?
+      ORDER BY sav.assigned_date DESC`,
       [staffId]
     );
 

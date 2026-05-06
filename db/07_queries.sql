@@ -1,9 +1,5 @@
 USE hsrms;
 
--- ──────────────────────────────────────────────────────────────
--- 10 DQL Queries — run one at a time, screenshot each output
--- ──────────────────────────────────────────────────────────────
-
 
 -- Query 1: Simple SELECT with JOIN
 -- All students with their room number and hostel name
